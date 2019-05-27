@@ -49,7 +49,7 @@ impl Cradle {
     }
 
     pub fn expression(&mut self) {
-        if emit_ln("expression".to_string()).is_err() {
+        if emit_ln(format!("Move #{},D0",self.get_num())).is_err() {
             abort("Didn't write expression".to_string())
         };
     }
