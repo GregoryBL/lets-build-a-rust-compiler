@@ -8,7 +8,6 @@ pub struct Cradle {
 impl Cradle {
 
     fn get_char(&mut self) {
-        println!("get_char");
         let mut b: [u8; 1] = [0];
         io::stdin().read(&mut b[..]).unwrap();
         self.buff = b[0] as char;
@@ -18,7 +17,7 @@ impl Cradle {
         self.get_char();
     }
 
-    pub fn is_match(&mut self, c: char) {
+    pub fn match_char(&mut self, c: char) {
         if c == self.buff {
             self.get_char();
         } else {
@@ -48,10 +47,33 @@ impl Cradle {
         }
     }
 
+    pub fn term(&mut self) {
+        emit_ln(format!("MOVE #{},D0", self.get_num()))
+    }
+
     pub fn expression(&mut self) {
-        if emit_ln(format!("Move #{},D0",self.get_num())).is_err() {
-            abort("Didn't write expression".to_string())
+        self.term();
+        while (vec!['+', '-']).into_iter().find(|&x| x == self.buff).is_some() {
+            emit_ln("MOVE D0,D1".to_string());
+            match self.buff {
+                '+' => self.add(),
+                '-' => self.subtract(),
+                _ => expected("Addop".to_string()),
+            };
         };
+    }
+    
+    fn add(&mut self) {
+        self.match_char('+');
+        self.term();
+        emit_ln("ADD D1,D0".to_string());
+    }
+
+    fn subtract(&mut self) {
+        self.match_char('-');
+        self.term();
+        emit_ln("SUB D1,D0".to_string());
+        emit_ln("NEG D0".to_string());
     }
 }
 
@@ -72,12 +94,13 @@ pub fn expected(s: String) {
 }
 
 /// Writing
-pub fn emit(s: String) -> io::Result<()> {
-    io::stdout().write_all(format!("\t{}", s).as_bytes())?;
-    Ok(())
+pub fn emit(s: String) {
+    if io::stdout().write_all(format!("\t{}", s).as_bytes()).is_err() {
+        abort("Didn't emit correctly.".to_string());
+    };
 }
 
-pub fn emit_ln(s: String) -> io::Result<()> {
+pub fn emit_ln(s: String) {
     let tmp = emit(s);
     println!("");
     tmp
