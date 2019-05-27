@@ -47,14 +47,49 @@ impl Cradle {
         }
     }
 
-    pub fn term(&mut self) {
-        emit_ln(format!("MOVE #{},D0", self.get_num()))
+    pub fn factor(&mut self) {
+        if self.buff == '(' {
+            self.match_char('(');
+            self.expression();
+            self.match_char(')');
+        } else {
+            emit_ln(format!("MOVE #{},D0", self.get_num()));
+        }
+    }
+
+    fn multiply(&mut self) {
+        self.match_char('*');
+        self.factor();
+        emit_ln("MULS (SP)+,D0".to_string());
+    }
+
+    fn divide(&mut self) {
+        self.match_char('/');
+        self.factor();
+        emit_ln("MOVE (SP)+,D1".to_string());
+        emit_ln("DIVS D1,D0".to_string());
+    }
+
+    fn term(&mut self) {
+        self.factor();
+        while is_mulop(self.buff) {
+            emit_ln("MOVE D0,-(SP)".to_string());
+            match self.buff {
+                '*' => self.multiply(),
+                '/' => self.divide(),
+                _ => expected("Mulop".to_string()),
+            };
+        }
     }
 
     pub fn expression(&mut self) {
-        self.term();
-        while (vec!['+', '-']).into_iter().find(|&x| x == self.buff).is_some() {
-            emit_ln("MOVE D0,D1".to_string());
+        if is_addop(self.buff) {
+            emit_ln("CLR D0".to_string());
+        } else {
+            self.term();
+        }
+        while is_addop(self.buff) {
+            emit_ln("MOVE D0,-(SP)".to_string());
             match self.buff {
                 '+' => self.add(),
                 '-' => self.subtract(),
@@ -62,20 +97,35 @@ impl Cradle {
             };
         };
     }
-    
+
     fn add(&mut self) {
         self.match_char('+');
         self.term();
-        emit_ln("ADD D1,D0".to_string());
+        emit_ln("ADD (SP)+,D0".to_string());
     }
 
     fn subtract(&mut self) {
         self.match_char('-');
         self.term();
-        emit_ln("SUB D1,D0".to_string());
+        emit_ln("SUB (SP)+,D0".to_string());
         emit_ln("NEG D0".to_string());
     }
 }
+
+/// Categorizers
+
+pub fn is_in_group(c: char, group: Vec<char>) -> bool {
+    group.into_iter().find(|&x| x == c).is_some()
+}
+
+pub fn is_addop(c: char) -> bool {
+    is_in_group(c, vec!['+','-'])
+}
+pub fn is_mulop(c: char) -> bool {
+    is_in_group(c, vec!['*','/'])
+}
+    
+
 
 /// Some error helpers
 
